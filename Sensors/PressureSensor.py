@@ -1,7 +1,7 @@
 import random
-from main import Sensor
+from Sensors.Sensor import Sensor
 
-class HumiditySensor(Sensor):
+class PressureSensor(Sensor):
     def __init__(self, sensor_id, name, unit, min_value, max_value, frequency=1):
         super().__init__(sensor_id, name, unit, min_value, max_value, frequency)
 
@@ -15,5 +15,3 @@ class HumiditySensor(Sensor):
         return value
 
 
-sensor = HumiditySensor(2, "czujnik wilgotności", "percent",
-                            0, 1, 1)
