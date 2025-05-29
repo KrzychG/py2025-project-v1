@@ -1,5 +1,6 @@
 import random
 from Sensors.Sensor import Sensor
+from datetime import datetime
 
 class HumiditySensor(Sensor):
     def __init__(self, sensor_id, name, unit, min_value, max_value, frequency=1):
@@ -12,4 +13,9 @@ class HumiditySensor(Sensor):
 
         value = random.uniform(self.min_value, self.max_value)
         self.last_value = value
+
+        # Wywołanie callbacka
+        for callback in self.callbacks:
+            callback(self.name, datetime.now(), value, self.unit)
+
         return value
