@@ -12,8 +12,13 @@ class Logger:
         Inicjalizuje logger na podstawie pliku JSON.
         :param config_path: Ścieżka do pliku konfiguracyjnego (.json)
         """
-        with open(config_path, "r") as f:
-            config = json.load(f)
+        try:
+            with open(config_path, "r") as f:
+                config = json.load(f)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Plik konfiguracyjny '{config_path}' nie został znaleziony.")
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Błąd parsowania pliku JSON: {e}")
 
         # zapisanie zawartości pliku configuracyjnego
         self.log_dir = config["log_dir"]
