@@ -88,7 +88,6 @@ class Logger:
             self._flush()
             self._check_rotation()
 
-
     def _check_rotation(self):
         now = datetime.now()
         elapsed = (now - self.last_rotation).total_seconds() / 3600
