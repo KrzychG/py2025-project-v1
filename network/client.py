@@ -1,9 +1,9 @@
 from datetime import datetime
 import socket
+from network.system_logger import system_logger as sys_logger
 
 class NetworkClient:
     def __init__(self, host, port, timeout=5.0, retries=3, logger=None):
-        """Inicjalizuje klienta sieciowego."""
         self.host = host
         self.port = port
         self.timeout = timeout
@@ -12,15 +12,12 @@ class NetworkClient:
         self.logger = logger
 
     def _log_info(self, msg: str):
-        if self.logger:
-            self.logger.log_reading(sensor_id="network", timestamp=datetime.now(), value=0, unit="INFO: " + msg)
+        sys_logger.info(msg)
 
     def _log_error(self, msg: str):
-        if self.logger:
-            self.logger.log_reading(sensor_id="network", timestamp=datetime.now(), value=0, unit="ERROR: " + msg)
+        sys_logger.error(msg)
 
     def connect(self):
-        """Nawiazuje połączenie z serwerem."""
         try:
             self.sock = socket.create_connection((self.host, self.port), timeout=self.timeout)
             self._log_info(f"Połączono z {self.host}:{self.port}")
@@ -29,7 +26,6 @@ class NetworkClient:
             self.sock = None
 
     def send(self, data: dict) -> bool:
-        """Wysyła dane i czeka na potwierdzenie zwrotne."""
         for attempt in range(self.retries):
             if not self.sock:
                 self.connect()
@@ -49,7 +45,6 @@ class NetworkClient:
         return False
 
     def close(self):
-        """Zamyka połączenie."""
         if self.sock:
             self.sock.close()
             self.sock = None
