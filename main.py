@@ -1,3 +1,4 @@
+import json
 import time
 from datetime import datetime
 from Sensors.PressureSensor import PressureSensor
@@ -7,14 +8,18 @@ from Sensors.TemperatureSensor import TemperatureSensor
 from Logger import Logger
 from network.client import NetworkClient
 
+# Wczytanie konfiguracji portu z pliku settings.json
+with open("settings.json", "r") as f:
+    settings = json.load(f)
+port = settings.get("port", 9000)
+
 # Inicjalizacja loggera
 logger = Logger("config.json")
 logger.start()
 
-# Inicjalizacja klienta sieciowego
-client = NetworkClient(host="127.0.0.1", port=9000, logger=logger)
+# Inicjalizacja klienta sieciowego z dynamicznym portem
+client = NetworkClient(host="127.0.0.1", port=port, logger=logger)
 client.connect()
-
 
 # Callback do logowania i wysyłki
 def log_callback(sensor_id, timestamp, value, unit):
@@ -35,13 +40,12 @@ def log_callback(sensor_id, timestamp, value, unit):
     if not success:
         print("[ERROR] Nie udało się wysłać danych do serwera.")
 
-
 # Inicjalizacja czujników
 sensors = [
     PressureSensor("P01", "PressureSensor", "hPa", 950, 1050),
     HumiditySensor("H01", "HumiditySensor", "%", 0, 100),
     AirQualitySensor("A01", "AirQualitySensor", "AQI", 0, 500),
-    TemperatureSensor("T01", "TemperatureSensor", '\u00B0' "C", -20, 50)
+    TemperatureSensor("T01", "TemperatureSensor", "°C", -20, 50)
 ]
 
 for sensor in sensors:

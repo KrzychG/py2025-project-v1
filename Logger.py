@@ -2,8 +2,9 @@ import csv
 import json
 import os
 import zipfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Iterator, Dict
+from collections import defaultdict
 
 
 class Logger:
@@ -20,7 +21,7 @@ class Logger:
         except json.JSONDecodeError as e:
             raise ValueError(f"Błąd parsowania pliku JSON: {e}")
 
-        # zapisanie zawartości pliku configuracyjnego
+        # zapisanie zawartości pliku konfiguracyjnego
         self.log_dir = config["log_dir"]
         self.filename_pattern = config["filename_pattern"]
         self.buffer_size = config["buffer_size"]
@@ -40,17 +41,26 @@ class Logger:
         self.buffer = []
         self.line_count = 0
 
+        # Bufor w pamięci dla ostatnich odczytów
+        self.readings = defaultdict(list)
+
     def start(self) -> None:
         """
         Otwiera nowy plik CSV do logowania. Jeśli plik jest nowy, zapisuje nagłówek.
         """
         self.current_filename = self._get_log_filename()
-        self.current_file = open(os.path.join(self.log_dir, self.current_filename), "a", newline="")
+        filepath = os.path.join(self.log_dir, self.current_filename)
+        file_exists = os.path.exists(filepath)
+
+        self.current_file = open(filepath, "a+", newline="")
+        self.current_file.seek(0)
+        first_line = self.current_file.readline()
         self.current_writer = csv.writer(self.current_file)
 
-        # jeżeli plik jest nowy to zapisuje nagłówki
-        if os.stat(self.current_file.name).st_size == 0:
+        # tylko jeśli plik nie istnieje lub jest pusty, dodaj nagłówek
+        if not file_exists or not first_line.strip():
             self.current_writer.writerow(["timestamp", "sensor_id", "value", "unit"])
+            self.current_file.flush()
 
     def _get_log_filename(self):
         return datetime.now().strftime(self.filename_pattern)
@@ -80,7 +90,14 @@ class Logger:
     ) -> None:
         """
         Dodaje wpis do bufora i ewentualnie wykonuje rotację pliku.
+        Dodatkowo buforuje dane w pamięci dla GUI.
         """
+        # Buforowanie danych w pamięci dla GUI (przechowujemy tylko ostatnie 12h)
+        self.readings[sensor_id].append((timestamp, value, unit))
+        cutoff = datetime.now() - timedelta(hours=12)
+        self.readings[sensor_id] = [r for r in self.readings[sensor_id] if r[0] >= cutoff]
+
+        # Logowanie do pliku
         row = [timestamp.isoformat(), sensor_id, value, unit]
         self.buffer.append(row)
 
@@ -116,7 +133,6 @@ class Logger:
         self.line_count = 0
         self.start()
 
-
     def _cleanup_old_archives(self):
         archive_dir = os.path.join(self.log_dir, "archive")
         now = datetime.now()
@@ -136,8 +152,6 @@ class Logger:
         """
         Pobiera wpisy z logów zadanego zakresu i opcjonalnie konkretnego czujnika.
         """
-        import zipfile
-
         def _parse_csv(fileobj):
             reader = csv.DictReader(fileobj)
             for row in reader:
@@ -166,3 +180,23 @@ class Logger:
                 with open(os.path.join(self.log_dir, filename), "r") as f:
                     yield from _parse_csv(f)
 
+    def get_latest_readings(self):
+        result = {}
+        for sensor_id, entries in self.readings.items():
+            if entries:
+                timestamp, value, unit = entries[-1]
+                result[sensor_id] = {
+                    "last_value": value,
+                    "unit": unit,
+                    "timestamp": timestamp
+                }
+        return result
+
+    def get_average(self, sensor_id: str, hours: int):
+        if sensor_id not in self.readings:
+            return None
+        cutoff = datetime.now() - timedelta(hours=hours)
+        values = [v for (ts, v, unit) in self.readings[sensor_id] if ts >= cutoff]
+        if not values:
+            return None
+        return sum(values) / len(values)
